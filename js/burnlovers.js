@@ -1,10 +1,32 @@
 /**
  * Created by guoshencheng on 11/3/15.
  */
+
+var MONSTER_WIDTH = 54
+var MONSTER_HEIGHT = 80
+var FIRE_WIDTH = 40
+var FIRE_HEIGHT = 40
+
+
+Array.prototype.indexOf = function(val) {
+    for (var i = 0; i < this.length; i++) {
+        if (this[i] == val) return i;
+    }
+    return -1;
+};
+Array.prototype.remove = function(val) {
+    var index = this.indexOf(val);
+    if (index > -1) {
+        this.splice(index, 1);
+    }
+};
+
+var monsters = []
+var fires = []
+
 window.onload = function(){
     cc.game.onStart = function(){
         //load resources
-        cc.view.adjustViewPort(true);
         cc.view.enableAutoFullScreen(false)
         cc.view.setDesignResolutionSize(667,375,cc.ResolutionPolicy.NO_BORDER);
         cc.view.resizeWithBrowserSize(true);
@@ -39,6 +61,7 @@ var MainLayer = cc.Layer.extend({
         this.addChild(playerLayer)
         this.addMonster();
         this.schedule(this.addMonster, 2, cc.REPEAT_FOREVER, 2)
+        this.scheduleUpdate()
         var self = this
         cc.eventManager.addListener({
             event: cc.EventListener.TOUCH_ONE_BY_ONE,
@@ -53,15 +76,40 @@ var MainLayer = cc.Layer.extend({
             }
         }, this)
     },
+    update: function() {
+        this._super()
+        if(monsters.length > 0 && fires.length > 0) {
+            for(var km = 0; km < monsters.length; km ++) {
+                for(var kf = 0; kf < fires.length; kf ++){
+                    var fl = fires[kf]
+                    var ml = monsters[km]
+                    if(this.checkRush(fl, ml)) {
+                        fl.deleteSelf()
+                        ml.deleteSelf()
+                    }
+                }
+            }
+        }
+    },
     addMonster: function() {
         var monsterLayer = new MonsterLayer()
+        monsters.push(monsterLayer)
         monsterLayer.init()
         this.addChild(monsterLayer, 0)
     },
     addFire: function(x, y) {
         var fireLayer = new FireLayer()
+        fires.push(fireLayer)
         fireLayer.init(x, y)
         this.addChild(fireLayer, 0)
+    },
+    checkRush: function(layer1, layer2) {
+        if(Math.abs((layer1.fire().x - layer2.monster().x)) < (MONSTER_WIDTH / 2 + FIRE_WIDTH / 2)
+            && Math.abs((layer1.fire().y - layer2.monster().y)) < (MONSTER_HEIGHT / 2 + FIRE_HEIGHT / 2)){
+            return true
+        } else {
+            return false
+        }
     }
 })
 
@@ -70,6 +118,7 @@ var FireLayer = cc.Layer.extend({
         this._super()
     },
     init: function(x, y) {
+        var self = this
         this._super()
         var size = cc.director.getWinSize()
         var fire = new cc.Sprite(res.projectile_png)
@@ -96,10 +145,22 @@ var FireLayer = cc.Layer.extend({
             }
         }
         var cb = new cc.CallFunc(function() {
-            fire.removeFromParent()
+            self.deleteSelf()
         }, this)
-        var act = new cc.Sequence(move, cb)
-        fire.runAction(act)
+        this.act = new cc.Sequence(move, cb)
+        fire.runAction(this.act)
+    },
+    fire: function() {
+        return this._children[0]
+    },
+    act: null,
+    deleteSelf: function() {
+        this.removeFromParent()
+        if (fires.length > 1) {
+            fires.remove(this)
+        } else {
+            fires = []
+        }
     }
 })
 
@@ -121,6 +182,7 @@ var MonsterLayer = cc.Layer.extend({
         this._super()
     },
     init: function() {
+        var self = this
         this._super()
         var monster = new cc.Sprite(res.monster_png)
         var size = cc.director.getWinSize()
@@ -130,10 +192,25 @@ var MonsterLayer = cc.Layer.extend({
         this.addChild(monster)
         var move = cc.moveTo(5, 0, y2)
         var cb = new cc.CallFunc(function() {
-            monster.removeFromParent()
+            self.deleteSelf()
         }, this)
         var act = new cc.Sequence(move, cb)
         monster.runAction(act)
+    },
+    monster: function() {
+        return this._children[0]
+    },
+    deleteSelf: function() {
+        this.removeFromParent()
+        if (fires.length > 1) {
+            monsters.remove(this)
+        } else {
+            monsters = []
+        }
     }
 })
+
+
+
+
 
